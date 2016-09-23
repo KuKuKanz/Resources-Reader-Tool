@@ -1,0 +1,19 @@
+
+
+#define GET_AUDIO(_Name_,_Path_)\
+public: static std::string aud##_Name_()\
+{\
+return _Path_;\
+}
+
+#define GET_FONT(_Name_,_Font_) \
+public: static CCString* font##_Name_ (){ \
+if (PLATFORM == 1) \
+return CCString::create(_FontName_); \
+return CCString::createWithFormat  ("fonts/%s.ttf",_FontName_);\
+}
+
+#include <iostream>
+#include "cocos2d.h"
+
+USING_NS_CC;

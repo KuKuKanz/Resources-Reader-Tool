@@ -1,0 +1,7 @@
+class Resources
+{
+    GET_AUDIO(bgGame, "BGGame");
+public:
+    static void loadListSpriteFramesInGame();
+};
+#endif

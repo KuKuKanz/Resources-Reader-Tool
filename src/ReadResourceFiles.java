@@ -1,7 +1,7 @@
 import java.awt.List;
 import java.io.*;
+import java.net.URL;
 import java.util.ArrayList;
-
 
 import org.jdom2.*;
 import org.jdom2.input.SAXBuilder;
@@ -14,8 +14,8 @@ public class ReadResourceFiles {
 	public static List ListMsgSpecialVarName;
 	public static ArrayList<File> ListPlistFile = new ArrayList<File>();
 
-	public static String[] fileType		=	{".plist",".png"};
-	public static String[] specialChar	=	{"-","@",".","(",")"};
+	public static String[] fileType		=	{".plist",".png",".fnt",".ttf",".TTF"};
+	public static String[] specialChar	=	{"-","@",".","(",")"," "};
 
 
 	/////Purpose: snippet code used to process if file is places in many sub-folder.
@@ -96,6 +96,8 @@ public class ReadResourceFiles {
 	//////Purpose: snippet code use to read a file then store each lines into a list string.
 	private static ArrayList<String> readFile(String filename)
 	{
+
+
 		ArrayList<String> records = new ArrayList<String>();
 		try
 		{
@@ -138,11 +140,11 @@ public class ReadResourceFiles {
 
 	/////Purpose: find if var name contain any special characters, then replace with '_'
 	public static String replaceSpecialChar(String _varName){
-		String varName = _varName;
+		String varName = _varName.substring(19, _varName.length());
 		for(int z = 0; z < specialChar.length;z++){
 			if (varName.contains(specialChar[z])){
-				ListMsgSpecialVarName.add(varName);
-				for(int i = 0; i < varName.length(); i++){
+				ListMsgSpecialVarName.add(_varName);
+				for(int i = 0 ; i < varName.length(); i++){
 					char tempChar = varName.charAt(i);
 					if (tempChar == '-' || tempChar == '@'){
 						varName = varName.replace(varName.charAt(i), '_');
@@ -150,15 +152,17 @@ public class ReadResourceFiles {
 						varName = varName.replace(varName.charAt(i), 'x');
 					}else if (tempChar == '(' || tempChar == ')'){
 						varName = varName.replace(varName.charAt(i), 'y');
+					}else if (tempChar == ' '){
+						varName = varName.replace(varName.charAt(i), '_');
 					}
 				}
 
-				//System.out.println(varName);
+				System.out.println(varName);
 			}
 		}
 
-
-		return varName;
+		
+		return "static const char* " + varName;
 	}
 
 
@@ -167,27 +171,27 @@ public class ReadResourceFiles {
 
 		String varName = replaceSpecialChar(_varName);	//Check whether var name has a special character : - or @
 		String finalName = varName;
-		
+
 		int countRepeatName = hasSameVarName(varName);
 		int count = 1;
 		int countRepeat = 0;
-		
+
 		if (countRepeatName > 0){
 			countRepeat++;
 			while(count != 0){
 				count = 0;
 				varName = finalName + String.format("_%d", countRepeat);
 				//System.out.println(varName);
-				
+
 				countRepeatName = hasSameVarName(varName);
 				if (countRepeatName>0){
 					countRepeat++;
 					count++;
 				}
 			}
-			
+
 			ListMsgVarName.add(varName.substring(19, varName.length()));
-			
+
 		}
 
 		return varName;
@@ -201,14 +205,18 @@ public class ReadResourceFiles {
 
 		for(File file : listOfFiles){
 			if (file.isFile()){
-				if (file.getName().endsWith(".png") || file.getName().endsWith(".plist")){
-					countAppriciateFile++;
+				for(String s : fileType){
+					if (file.getName().endsWith(s)){
+						return 1;
+					}
 				}
 			}else if (file.isDirectory()){
 				File[] listOfChildFile = file.listFiles();
 				for(File childFile : listOfChildFile){
-					if (childFile.getName().endsWith(".png") || childFile.getName().endsWith(".plist")){
-						countAppriciateFile++;
+					for(String s : fileType){
+						if (childFile.getName().endsWith(s)){
+							return 1;
+						}
 					}
 				}
 			}
@@ -230,23 +238,26 @@ public class ReadResourceFiles {
 	public static void Create(File _file,String _destinationPath, List _list) throws IOException  {
 		File folder = _file;
 		File[] listOfFiles = folder.listFiles();
-		
+
 		String fileName	    = "ResourcesNew.h";
 		String pngType 		= "static const char* srcPNG_";
 		String plistType	= "static const char* srcPLIST_";
+		String fntType		= "static const char* srcFNT_";
+		String tffType		= "static const char* srcTFF_";
+		String tffType2		= "static const char* srcTFF_";
 
-		String[] varType		= {plistType,pngType};
+		String[] varType		= {plistType,pngType,fntType,tffType,tffType2};
 
-		int[] subVarChar = {6,4}; // ~ .plist has 6 char + .png has 4 char
+		int[] subVarChar = {6,4,4,4,4}; // ~ .plist has 6 char + .png has 4 char
 
 		ArrayList<String> recordsStart 	= readFile("Resource/startDescription");	//Get content from startDescription.text
-		ArrayList<String> recordsEnd 	= readFile("Resource/endDescription");		//Get content from endDescription.text
+		ArrayList<String> recordsEnd 	= readFile("Resource/endDescription");		//Get content from endDescription.tex
 
 		//init list contains var name
 		listVarName 	= new List();
 		ListMsgVarName 	= new List();
 		ListMsgSpecialVarName = new List();
-		
+
 		BufferedWriter out = new 
 				BufferedWriter(new FileWriter(_destinationPath+"/" + fileName));	//Write to new file named "Resources New.h"
 
@@ -319,26 +330,27 @@ public class ReadResourceFiles {
 		////////////Read files in .plist and write to file
 		for (int i = 0;i< ListPlistFile.size();i++){
 			ArrayList<String> listResourceInPlist = ReadPlistFile(ListPlistFile.get(i));
+			if (listResourceInPlist.size() > 0){
+				_name = ListPlistFile.get(i).getName();
+				out.write("#pragma region " + _name.substring(0,_name.length()-6));
+				out.newLine();
 
-			_name = ListPlistFile.get(i).getName();
-			out.write("#pragma region " + _name.substring(0,_name.length()-6));
-			out.newLine();
+				for(int z = 0; z < listResourceInPlist.size();z++){
+					_name = listResourceInPlist.get(z);
+					String varName	= pngType +  _name.substring(0, _name.length() - 4);
+					varName = changeVarNameIfHasTheSame(varName);
+					listVarName.add(varName);
+					out.write(varName + createIntent(pngType+varName) + " = " + "\"" + _name + "\";"  );
+					out.newLine(); 
+					_list.add(_name); //Display file name in UI.
+					_list.select(_list.getItemCount());
+				}
+				out.write("#pragma endregion ");
 
-			for(int z = 0; z < listResourceInPlist.size();z++){
-				_name = listResourceInPlist.get(z);
-				String varName	= pngType +  _name.substring(0, _name.length() - 4);
-				varName = changeVarNameIfHasTheSame(varName);
-				listVarName.add(varName);
-				out.write(varName + createIntent(pngType+varName) + " = " + "\"" + _name + "\";"  );
-				out.newLine(); 
-				_list.add(_name); //Display file name in UI.
-				_list.select(_list.getItemCount());
+				out.newLine();
+				out.newLine();
+				out.newLine();
 			}
-			out.write("#pragma endregion ");
-
-			out.newLine();
-			out.newLine();
-			out.newLine();
 		}
 
 
@@ -360,7 +372,9 @@ public class ReadResourceFiles {
 		if (ListMsgSpecialVarName.getItemCount()>0){
 			_list.add("==========================");
 			_list.add("=> WARNING: Found some resources contrain special character");
+			
 			for(int i = 0; i < ListMsgSpecialVarName.getItemCount();i++){
+				System.out.println(ListMsgSpecialVarName.getItem(i));
 				_list.add(ListMsgSpecialVarName.getItem(i).substring(19, ListMsgSpecialVarName.getItem(i).length()));
 				_list.select(_list.getItemCount());
 			}
